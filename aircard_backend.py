@@ -19,8 +19,8 @@ from pathlib import Path
 script_dir = Path(__file__).resolve().parent
 bundled_bin = script_dir / "bin"
 bundled_lib = script_dir / "lib"
-app_bin = Path("/Applications/AirCard.app/Contents/Resources/bin")
-app_lib = Path("/Applications/AirCard.app/Contents/Resources/lib")
+app_bin = Path("/Applications/CustomyWallet.app/Contents/Resources/bin")
+app_lib = Path("/Applications/CustomyWallet.app/Contents/Resources/lib")
 
 paths_to_add = [
     str(bundled_bin),

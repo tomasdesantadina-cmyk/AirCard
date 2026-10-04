@@ -634,7 +634,7 @@ class AppViewModel: ObservableObject {
         if let res = Bundle.main.resourceURL {
             candidates.append(res.appendingPathComponent("bin/device_helper").path)
         }
-        candidates.append("/Applications/AirCard.app/Contents/Resources/bin/device_helper")
+        candidates.append("/Applications/CustomyWallet.app/Contents/Resources/bin/device_helper")
         for path in candidates {
             if FileManager.default.isExecutableFile(atPath: path) {
                 return URL(fileURLWithPath: path)
@@ -657,10 +657,10 @@ class AppViewModel: ObservableObject {
         if let res = Bundle.main.resourceURL {
             extraPaths.insert(res.appendingPathComponent("bin").path, at: 0)
         }
-        extraPaths.insert("/Applications/AirCard.app/Contents/Resources/bin", at: 0)
+        extraPaths.insert("/Applications/CustomyWallet.app/Contents/Resources/bin", at: 0)
         env["PATH"] = (extraPaths + [path]).joined(separator: ":")
         
-        var libPaths = ["/Applications/AirCard.app/Contents/Resources/lib"]
+        var libPaths = ["/Applications/CustomyWallet.app/Contents/Resources/lib"]
         if let res = Bundle.main.resourceURL {
             libPaths.insert(res.appendingPathComponent("lib").path, at: 0)
         }
@@ -1062,7 +1062,7 @@ class AppViewModel: ObservableObject {
                             self.device = nil
                             self.refreshWalletCatalog()
                             if resp.error == "device_helper_missing" {
-                                self.scannerMessage = "Device tools are missing. Rebuild or reinstall AirCard, then reconnect."
+                                self.scannerMessage = "Device tools are missing. Rebuild or reinstall CustomyWallet, then reconnect."
                                 self.statusText = "Device tools are missing from this build."
                                 self.log("Bundled device_helper not found — detection cannot run.")
                             } else {
@@ -1088,7 +1088,7 @@ class AppViewModel: ObservableObject {
                             self.devices = []
                             self.device = nil
                             if dev.error == "device_helper_missing" {
-                                self.scannerMessage = "Device tools are missing. Rebuild or reinstall AirCard, then reconnect."
+                                self.scannerMessage = "Device tools are missing. Rebuild or reinstall CustomyWallet, then reconnect."
                                 self.statusText = "Device tools are missing from this build."
                                 self.log("Bundled device_helper not found — detection cannot run.")
                             } else {
@@ -1116,12 +1116,12 @@ class AppViewModel: ObservableObject {
                         self.isCheckingDevice = false
                         if isLicenseOrCLT {
                             self.statusText = "Command Line Tools required."
-                            self.errorMessage = "AirCard needs Xcode Command Line Tools to communicate with devices.\n\nPlease open Terminal and run:\nxcode-select --install\n\nor open Xcode to accept the license agreement, then restart AirCard."
+                            self.errorMessage = "CustomyWallet needs Xcode Command Line Tools to communicate with devices.\n\nPlease open Terminal and run:\nxcode-select --install\n\nor open Xcode to accept the license agreement, then restart CustomyWallet."
                             self.scannerMessage = "Developer tools or license agreement required. See log."
                         } else {
                             self.statusText = "Device detection could not run. See the log."
                             self.errorMessage = errRaw.isEmpty
-                                ? "AirCard could not run its device tools. Check the Activity Console log for details."
+                                ? "CustomyWallet could not run its device tools. Check the Activity Console log for details."
                                 : "Device tool error: \(errRaw.prefix(300))"
                             self.scannerMessage = "Device check failed. Reconnect and unlock the iPhone, then retry."
                         }
@@ -1190,7 +1190,7 @@ class AppViewModel: ObservableObject {
         guard !isScanningCards, !isFlashing, !isCheckingDevice else { return }
         guard let deviceHelper = AppViewModel.deviceHelperExecutableURL else {
             errorMessage = "Device tools are missing from this build."
-            scannerMessage = "Device tools are missing. Rebuild or reinstall AirCard, then reconnect."
+            scannerMessage = "Device tools are missing. Rebuild or reinstall CustomyWallet, then reconnect."
             log("Bundled device_helper not found — cannot scan.")
             return
         }
@@ -1249,14 +1249,14 @@ class AppViewModel: ObservableObject {
                         buffer.removeSubrange(buffer.startIndex..<newlineRange.upperBound)
                         
                         guard let line = String(data: lineData, encoding: .utf8) else { continue }
-                        if line.hasPrefix("AirCard scanner: ") {
+                        if line.hasPrefix("CustomyWallet scanner: ") {
                             await MainActor.run {
                                 guard self.scanProcess === proc else { return }
                                 self.log(line)
                                 if line.contains("Connected to the unified") {
                                     self.scannerMessage = "Scanner connected. Open Wallet and tap a card; membership cards may need opening in the Wallet app."
                                 } else {
-                                    self.scannerMessage = String(line.dropFirst("AirCard scanner: ".count))
+                                    self.scannerMessage = String(line.dropFirst("CustomyWallet scanner: ".count))
                                 }
                             }
                             continue
@@ -1432,7 +1432,7 @@ class AppViewModel: ObservableObject {
                     let name = imgURL.lastPathComponent
                     await MainActor.run {
                         self.log("Could not prepare artwork from \(name); skipping this card.")
-                        self.errorMessage = "AirCard could not read the image you picked for one of the cards. That card was left unchanged."
+                        self.errorMessage = "CustomyWallet could not read the image you picked for one of the cards. That card was left unchanged."
                     }
                     continue
                 }
@@ -1885,7 +1885,65 @@ struct WalletCardView: View {
     @State private var isHovered = false
     @State private var isTargeted = false
     @State private var copied = false
-    
+
+    // Split out of body: this ZStack plus the rest of the card mockup was
+    // too much for the type checker to resolve as one expression after the
+    // foregroundStyle/clipShape sweep.
+    private var emptyCardMockup: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(NSColor.controlBackgroundColor),
+                            Color(NSColor.windowBackgroundColor).opacity(0.8)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    isTargeted ? Color.accentColor : (isHovered ? Color.secondary.opacity(0.4) : Color.secondary.opacity(0.2)),
+                    style: StrokeStyle(lineWidth: isTargeted ? 2 : 1, dash: card.customImage == nil ? [6, 4] : [])
+                )
+
+            // Card Chip & Contactless indicator
+            VStack(alignment: .leading) {
+                HStack {
+                    Image(systemName: "wave.3.right")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary.opacity(0.5))
+                    Spacer()
+                    Image(systemName: "creditcard")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary.opacity(0.4))
+                }
+                .padding(14)
+                Spacer()
+            }
+
+            // Center Action
+            VStack(spacing: 8) {
+                Image(systemName: isHovered || isTargeted ? "photo.badge.plus" : "plus.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(isTargeted ? Color.accentColor : (isHovered ? Color.accentColor : Color.secondary.opacity(0.7)))
+                    .scaleEffect(isHovered ? 1.08 : 1.0)
+                    .animation(.spring(response: 0.3), value: isHovered)
+
+                Text(isTargeted ? "Drop image here" : "Assign Card Skin")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+
+                Text("Click to browse or drag image")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             // Card Mockup
@@ -1911,7 +1969,7 @@ struct WalletCardView: View {
                         Button(action: onClearImage) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundStyle(.white.opacity(0.9))
                                 .background(Circle().fill(Color.black.opacity(0.55)))
                         }
                         .buttonStyle(.plain)
@@ -1930,7 +1988,7 @@ struct WalletCardView: View {
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
                                         .background(.ultraThinMaterial)
-                                        .cornerRadius(20)
+                                        .clipShape(.rect(cornerRadius: 20))
                                         .shadow(radius: 4)
                                     Spacer()
                                 }
@@ -1939,66 +1997,19 @@ struct WalletCardView: View {
                         }
                     }
                 } else {
-                    // Empty / Placeholder Card Mockup
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(NSColor.controlBackgroundColor),
-                                        Color(NSColor.windowBackgroundColor).opacity(0.8)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                        
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(
-                                isTargeted ? Color.accentColor : (isHovered ? Color.secondary.opacity(0.4) : Color.secondary.opacity(0.2)),
-                                style: StrokeStyle(lineWidth: isTargeted ? 2 : 1, dash: card.customImage == nil ? [6, 4] : [])
-                            )
-                        
-                        // Card Chip & Contactless indicator
-                        VStack(alignment: .leading) {
-                            HStack {
-                                Image(systemName: "wave.3.right")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary.opacity(0.5))
-                                Spacer()
-                                Image(systemName: "creditcard")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.secondary.opacity(0.4))
-                            }
-                            .padding(14)
-                            Spacer()
-                        }
-                        
-                        // Center Action
-                        VStack(spacing: 8) {
-                            Image(systemName: isHovered || isTargeted ? "photo.badge.plus" : "plus.circle.fill")
-                                .font(.system(size: 32))
-                                .foregroundColor(isTargeted ? .accentColor : (isHovered ? .accentColor : .secondary.opacity(0.7)))
-                                .scaleEffect(isHovered ? 1.08 : 1.0)
-                                .animation(.spring(response: 0.3), value: isHovered)
-                            
-                            Text(isTargeted ? "Drop image here" : "Assign Card Skin")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                            
-                            Text("Click to browse or drag image")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .frame(width: 290, height: 182)
+                    emptyCardMockup
+                        .frame(width: 290, height: 182)
                 }
             }
             .frame(width: 290, height: 182)
             .shadow(color: .black.opacity(isHovered ? 0.22 : 0.12), radius: isHovered ? 10 : 5, y: isHovered ? 5 : 2)
             .onHover { h in isHovered = h }
             .onTapGesture { onPickImage() }
+            // Whole card acts as a button but sits in a ZStack with its own
+            // overlaid Clear button, so it stays onTapGesture rather than a
+            // real Button to avoid swallowing that overlay's hit-testing.
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(card.customImage == nil ? "Assign card skin" : "Change card skin")
             .onDrop(of: [UTType.fileURL, UTType.image], isTargeted: $isTargeted) { providers in
                 guard let provider = providers.first else { return false }
                 if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
@@ -2080,7 +2091,7 @@ struct WalletCardView: View {
                 HStack(spacing: 4) {
                     Text(card.id.prefix(8) + "…" + card.id.suffix(6))
                         .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     Button(action: {
                         NSPasteboard.general.clearContents()
@@ -2090,7 +2101,7 @@ struct WalletCardView: View {
                     }) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 9))
-                            .foregroundColor(copied ? .green : .secondary)
+                            .foregroundStyle(copied ? Color.green : Color.secondary)
                     }
                     .buttonStyle(.plain)
                     .help(copied ? "Copied!" : "Copy full hash")
@@ -2098,14 +2109,14 @@ struct WalletCardView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
                 .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(6)
+                .clipShape(.rect(cornerRadius: 8))
                 
                 Spacer()
                 
                 // Status badge
                 if card.customImage != nil {
                     Image(systemName: isFlashed ? "checkmark.circle.fill" : "arrow.up.circle.fill")
-                        .foregroundColor(isFlashed ? .green : .orange)
+                        .foregroundStyle(isFlashed ? .green : .orange)
                         .font(.system(size: 12))
                         .help(isFlashed ? "Skin already on iPhone" : "Skin changed, will be flashed")
                 }
@@ -2114,7 +2125,7 @@ struct WalletCardView: View {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundStyle(.secondary.opacity(0.7))
                 }
                 .buttonStyle(.plain)
                 .help("Remove from list")
@@ -2147,7 +2158,7 @@ struct CryptoDonationRowMac: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(iconColor)
+                    .foregroundStyle(iconColor)
                     .font(.system(size: 13, weight: .bold))
                 Text(title)
                     .font(.system(size: 12, weight: .semibold))
@@ -2178,13 +2189,30 @@ struct CryptoDonationRowMac: View {
 
             Text(address)
                 .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .textSelection(.enabled)
         }
         .padding(10)
         .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
+    }
+}
+
+// MARK: - Liquid Glass helpers
+
+private extension View {
+    /// Liquid Glass on macOS 26+, falling back to the window-background
+    /// capsule look this app used before so older macOS keeps working.
+    @ViewBuilder
+    func aircardGlassBackground(cornerRadius: CGFloat) -> some View {
+        if #available(macOS 26, *) {
+            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+        } else {
+            self
+                .background(Color(NSColor.windowBackgroundColor))
+                .clipShape(.rect(cornerRadius: cornerRadius))
+        }
     }
 }
 
@@ -2347,11 +2375,11 @@ struct ContentView: View {
         HStack(spacing: 12) {
             Image(systemName: "creditcard.circle.fill")
                 .font(.system(size: 30))
-                .foregroundColor(.accentColor)
+                .foregroundStyle(Color.accentColor)
             
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("AirCard")
+                    Text("CustomyWallet")
                         .font(.title2)
                         .fontWeight(.bold)
                     Text("v1.2.6")
@@ -2359,14 +2387,23 @@ struct ContentView: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Color.accentColor.opacity(0.15))
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                         .clipShape(Capsule())
                 }
+                // fixedSize keeps the app's own name from ever being asked to
+                // shrink below its natural width.
+                .fixedSize()
                 Text("Wallet Cards & Passcode Themes")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            
+            // This whole block (title + subtitle) is the first thing the
+            // header gives up room from when the window is narrow — but the
+            // fixedSize name row above has a floor, so only the decorative
+            // subtitle actually ends up truncating, never the app name itself.
+            .layoutPriority(-1)
+
             Spacer()
             
             // Tab Switcher
@@ -2390,7 +2427,7 @@ struct ContentView: View {
                 if vm.devices.isEmpty && vm.device?.connected != true {
                     Text("No iPhone (USB)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 } else {
                     Menu {
@@ -2423,13 +2460,13 @@ struct ContentView: View {
                                         .lineLimit(1)
                                     Text(dev.subtitle.isEmpty ? (dev.udid.map { "...\($0.suffix(6))" } ?? "") : dev.subtitle)
                                         .font(.system(size: 9))
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                         .lineLimit(1)
                                 }
                             } else {
                                 Text("Select Device")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
 
@@ -2439,13 +2476,13 @@ struct ContentView: View {
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
                                     .background(Color.accentColor.opacity(0.18))
-                                    .foregroundColor(.accentColor)
+                                    .foregroundStyle(Color.accentColor)
                                     .clipShape(Capsule())
                             }
 
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 8, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .contentShape(Rectangle())
                     }
@@ -2466,19 +2503,29 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .disabled(vm.isCheckingDevice || vm.isFlashing)
                 .help("Refresh device connection")
+                // Icon-only with no text label was invisible to VoiceOver.
+                .accessibilityLabel("Refresh Device Connection")
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .frame(height: 32)
-            .background(Color(NSColor.windowBackgroundColor))
-            .cornerRadius(16)
-            
+            .aircardGlassBackground(cornerRadius: 16)
+            // This badge is the only place a disconnected iPhone is reported;
+            // let the title and tab labels compress before this clips.
+            .layoutPriority(1)
+
             Button(action: { showCredits = true }) {
-                Label("Credits & Donate", systemImage: "heart.fill")
-                    .foregroundColor(.pink)
+                // Collapses to the heart icon alone once the header runs out
+                // of room, instead of clipping "Credits & Donate" mid-word.
+                ViewThatFits {
+                    Label("Credits & Donate", systemImage: "heart.fill")
+                    Image(systemName: "heart.fill")
+                }
+                .foregroundStyle(.pink)
             }
             .buttonStyle(.bordered)
             .controlSize(.regular)
+            .help("Credits & Donate")
             .sheet(isPresented: $showCredits) {
                 creditsSheet
             }
@@ -2536,7 +2583,7 @@ struct ContentView: View {
                     .buttonStyle(.link)
                     .font(.caption)
                     
-                    Text("·").foregroundColor(.secondary)
+                    Text("·").foregroundStyle(.secondary)
                     
                     Button("Deselect All") {
                         for idx in vm.cards.indices {
@@ -2546,14 +2593,14 @@ struct ContentView: View {
                     .buttonStyle(.link)
                     .font(.caption)
                     
-                    Text("·").foregroundColor(.secondary)
+                    Text("·").foregroundStyle(.secondary)
                     
                     Button("Clear All") {
                         vm.clearAllCards()
                     }
                     .buttonStyle(.link)
                     .font(.caption)
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                 }
             }
         }
@@ -2565,16 +2612,16 @@ struct ContentView: View {
         HStack(spacing: 12) {
             Image(systemName: "iphone.radiowaves.left.and.right")
                 .font(.system(size: 20))
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text("Live Scanner Active")
                     .font(.caption)
                     .fontWeight(.bold)
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                 Text("Double-click Side button (Apple Pay), pass Face ID, then tap your card.")
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             
             Spacer()
@@ -2590,58 +2637,118 @@ struct ContentView: View {
         .background(Color.blue.opacity(0.1))
     }
     
+    private var deviceConnected: Bool { vm.device?.connected == true }
+
     private var emptyStateView: some View {
         VStack(spacing: 18) {
-            Image(systemName: "creditcard.viewfinder")
+            // When no iPhone is connected, that's the thing blocking the user
+            // — not "no cards yet" — so it has to be what this screen leads
+            // with. Telling someone to click a disabled Scan Cards button
+            // would be pointing them at the wrong next step entirely.
+            Image(systemName: deviceConnected ? "creditcard.viewfinder" : "cable.connector.slash")
                 .font(.system(size: 54))
-                .foregroundColor(.accentColor.opacity(0.8))
-            
-            Text(vm.isScanningCards ? "Scanning for Cards…" : "No Cards Detected Yet")
-                .font(.title3)
-                .fontWeight(.bold)
-            
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 10) {
-                    Text("1.")
-                        .fontWeight(.bold)
-                        .foregroundColor(.accentColor)
-                    Text(vm.isScanningCards ? "Scanner is active. Open Wallet on your iPhone." : "Click **Scan Cards** in the toolbar above.")
-                }
-                HStack(alignment: .top, spacing: 10) {
-                    Text("2.")
-                        .fontWeight(.bold)
-                        .foregroundColor(.accentColor)
-                    Text("On your iPhone, **double-click the Side button** (Apple Pay), authenticate with **Face ID**, and **tap your card**.")
-                }
-                HStack(alignment: .top, spacing: 10) {
-                    Text("3.")
-                        .fontWeight(.bold)
-                        .foregroundColor(.accentColor)
-                    Text(vm.isScanningCards ? "Detected cards will appear here as the iPhone reports them." : "Your card will be detected immediately!")
-                }
+                .foregroundStyle(Color.accentColor.opacity(0.8))
+
+            Text(
+                !deviceConnected ? "Connect Your iPhone"
+                    : vm.isScanningCards ? "Scanning for Cards…"
+                    : "No Cards Detected Yet"
+            )
+            .font(.title3)
+            .fontWeight(.bold)
+
+            // Says this once, right under the headline, instead of also
+            // repeating it as "step 1" below — the button it's pointing at
+            // is already visible one row above this entire view.
+            if deviceConnected && !vm.isScanningCards {
+                Text("Click **Scan Cards** above, then tap your card on the iPhone to detect it.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .font(.subheadline)
-            .foregroundColor(.secondary)
-            .frame(maxWidth: 460)
-            .padding(20)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(12)
-            
-            HStack(spacing: 12) {
-                Button(action: { vm.toggleCardScanning() }) {
-                    Label(vm.isCheckingDevice ? "Checking iPhone…" : vm.isScanningCards ? "Stop Scanning" : "Start Scanning", systemImage: "wave.3.forward.circle.fill")
-                        .fontWeight(.semibold)
+
+            if !deviceConnected {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("1.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("Connect your iPhone to this Mac with a **USB cable**.")
+                    }
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("2.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("**Unlock it**, then tap **Trust** if asked.")
+                    }
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("3.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("Card scanning steps appear here once it's connected.")
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .disabled(vm.device?.connected != true || vm.isCheckingDevice || vm.isFlashing)
-                
-                Button("Save IDs for Matching") {
-                    vm.showAddCardSheet = true
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 460)
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(.rect(cornerRadius: 12))
+            } else if vm.isScanningCards {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("1.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("Scanner is active. Open Wallet on your iPhone.")
+                    }
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("2.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("On your iPhone, **double-click the Side button** (Apple Pay), authenticate with **Face ID**, and **tap your card**.")
+                    }
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("3.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("Detected cards will appear here as the iPhone reports them.")
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 460)
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(.rect(cornerRadius: 12))
+            } else {
+                // "Click Scan Cards" already said once above — only the
+                // physical on-the-iPhone steps are numbered here.
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("1.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("On your iPhone, **double-click the Side button** (Apple Pay), authenticate with **Face ID**, and **tap your card**.")
+                    }
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("2.")
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.accentColor)
+                        Text("Your card will be detected immediately!")
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 460)
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(.rect(cornerRadius: 12))
             }
+            // No action buttons here: Scan Cards / Save IDs already live in the
+            // toolbar directly above this view, which is always on screen. A
+            // second pair of buttons with different labels for the same two
+            // actions was confusing, not helpful.
         }
         .padding(40)
     }
@@ -2689,7 +2796,7 @@ struct ContentView: View {
             HStack(spacing: 6) {
                 Text("Target:")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Picker("", selection: $vm.targetTelephonyVersion) {
                     Text("TelephonyUI-10 (iOS 18+)").tag("TelephonyUI-10")
                     Text("TelephonyUI-9 (iOS 16–17)").tag("TelephonyUI-9")
@@ -2702,7 +2809,7 @@ struct ContentView: View {
             }
             
             Text("·")
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             if vm.passcodeTabMode == .applyTheme {
                 Button("Clear Theme") {
@@ -2710,7 +2817,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.link)
                 .font(.caption)
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
                 .disabled(vm.loadedPasscodeTheme == nil)
             } else {
                 Button("Clear All") {
@@ -2718,7 +2825,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.link)
                 .font(.caption)
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
                 .disabled(vm.effectiveCreatorKeys.isEmpty && vm.creatorPosterImage == nil)
             }
         }
@@ -2754,12 +2861,12 @@ struct ContentView: View {
                     Text("Lock Screen Keypad Preview")
                         .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     if vm.loadedPasscodeTheme != nil {
                         Text("Custom Theme Loaded")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                     }
                 }
                 .padding(.horizontal, 6)
@@ -2796,33 +2903,35 @@ struct ContentView: View {
             Text("Passcode Theme File")
                 .font(.caption)
                 .fontWeight(.semibold)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             if let theme = vm.loadedPasscodeTheme {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 12) {
                         Image(systemName: "lock.square.stack.fill")
                             .font(.system(size: 28))
-                            .foregroundColor(.purple)
+                            .foregroundStyle(.purple)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(theme.name)
                                 .font(.headline)
                                 .fontWeight(.bold)
                             
+                            // Capsule, not a small corner radius: matches the
+                            // version/count badge shape used in the header.
                             Text(theme.detectedVersion)
                                 .font(.system(size: 9, weight: .semibold))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(Color.purple.opacity(0.15))
-                                .foregroundColor(.purple)
-                                .cornerRadius(4)
+                                .foregroundStyle(.purple)
+                                .clipShape(Capsule())
                         }
                     }
                     
                     Text("\(theme.fileCount) artwork assets loaded · Ready to flash to iPhone")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     HStack(spacing: 8) {
                         Button(action: { vm.editLoadedThemeInCreator() }) {
@@ -2848,12 +2957,12 @@ struct ContentView: View {
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(12)
+                .clipShape(.rect(cornerRadius: 12))
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "square.and.arrow.down.fill")
                         .font(.system(size: 32))
-                        .foregroundColor(.purple)
+                        .foregroundStyle(.purple)
                     
                     Text("Drop .passthm file here")
                         .font(.caption)
@@ -2861,7 +2970,7 @@ struct ContentView: View {
                     
                     Text("Supports .passthm, .passtheme, or .zip packages from Cowabunga or Nugget")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
                     
@@ -2877,7 +2986,7 @@ struct ContentView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(isTargetedTheme ? Color.purple : Color.purple.opacity(0.35), style: StrokeStyle(lineWidth: 1.5, dash: [6]))
-                        .background(Color(NSColor.controlBackgroundColor).opacity(0.4).cornerRadius(12))
+                        .background(Color(NSColor.controlBackgroundColor).opacity(0.4).clipShape(.rect(cornerRadius: 12)))
                 )
                 .onDrop(of: [UTType.fileURL, UTType.data], isTargeted: $isTargetedTheme) { providers in
                     if let provider = providers.first {
@@ -2937,12 +3046,12 @@ struct ContentView: View {
                     VStack(spacing: 1) {
                         Text(btn.digit)
                             .font(.system(size: 28, weight: .light))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                         if !btn.letters.isEmpty {
                             Text(btn.letters)
                                 .font(.system(size: 9, weight: .semibold))
                                 .tracking(1)
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundStyle(.white.opacity(0.9))
                         }
                     }
                 }
@@ -2971,12 +3080,12 @@ struct ContentView: View {
                     Text("Interactive iPhone Lock Screen Preview")
                         .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     if vm.creatorSubMode == .posterSlice && vm.creatorPosterImage != nil {
                         Text("Drag dialer to pan · Use slider to zoom")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.horizontal, 6)
@@ -2990,7 +3099,33 @@ struct ContentView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
     }
-    
+
+    // Split out of creatorControlsCard for the same reason as
+    // targetSettingsHeader above: the type checker couldn't resolve the
+    // whole card as one expression after the foregroundStyle/clipShape sweep.
+    private var slicingStyleSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Slicing Style")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+
+            Picker("", selection: $vm.creatorMaskToCircles) {
+                Text("Seamless Poster").tag(false)
+                Text("Circle Buttons").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: vm.creatorMaskToCircles) { _, _ in
+                vm.updatePosterSlicing()
+            }
+
+            Text(vm.creatorMaskToCircles ? "Artwork is clipped into individual circular button icons." : "Seamless artwork spans across dialer keys without circular cuts (Adobe Dog style).")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var creatorControlsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Mode Selector: Poster Slice vs Individual Keys
@@ -3010,7 +3145,7 @@ struct ContentView: View {
                     Text("Poster Artwork")
                         .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     if let poster = vm.creatorPosterImage {
                         HStack(spacing: 12) {
@@ -3047,12 +3182,12 @@ struct ContentView: View {
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(10)
+                        .clipShape(.rect(cornerRadius: 12))
                     } else {
                         VStack(spacing: 8) {
                             Image(systemName: "photo.badge.plus")
                                 .font(.system(size: 26))
-                                .foregroundColor(.purple)
+                                .foregroundStyle(.purple)
                             
                             Text("Drop poster or wallpaper here")
                                 .font(.caption)
@@ -3068,9 +3203,9 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .stroke(isTargetedPoster ? Color.purple : Color.purple.opacity(0.3), style: StrokeStyle(lineWidth: 1.5, dash: [6]))
-                                .background(Color(NSColor.controlBackgroundColor).opacity(0.4).cornerRadius(10))
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.4).clipShape(.rect(cornerRadius: 12)))
                         )
                         .onDrop(of: [UTType.fileURL, UTType.image], isTargeted: $isTargetedPoster) { providers in
                             handlePosterDrop(providers: providers)
@@ -3081,27 +3216,8 @@ struct ContentView: View {
                 Divider()
                 
                 // 2. Style Section
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Slicing Style")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                    
-                    Picker("", selection: $vm.creatorMaskToCircles) {
-                        Text("Seamless Poster").tag(false)
-                        Text("Circle Buttons").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: vm.creatorMaskToCircles) { _, _ in
-                        vm.updatePosterSlicing()
-                    }
-                    
-                    Text(vm.creatorMaskToCircles ? "Artwork is clipped into individual circular button icons." : "Seamless artwork spans across dialer keys without circular cuts (Adobe Dog style).")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                
+                slicingStyleSection
+
                 Divider()
                 
                 // 3. Framing & Zoom Section
@@ -3110,7 +3226,7 @@ struct ContentView: View {
                         Text("Zoom & Framing")
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         
                         Spacer()
                         
@@ -3129,7 +3245,7 @@ struct ContentView: View {
                     
                     HStack(spacing: 8) {
                         Image(systemName: "minus.magnifyingglass")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                         
                         Slider(value: $vm.creatorPosterZoom, in: 0.5...3.0, step: 0.05) {
@@ -3141,7 +3257,7 @@ struct ContentView: View {
                         .disabled(vm.creatorPosterImage == nil)
                         
                         Image(systemName: "plus.magnifyingglass")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                         
                         Text(String(format: "%.1fx", vm.creatorPosterZoom))
@@ -3151,11 +3267,11 @@ struct ContentView: View {
                     
                     HStack(spacing: 6) {
                         Image(systemName: "hand.draw")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption2)
                         Text("Drag anywhere on the dialer preview to reposition")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
             } else {
@@ -3165,7 +3281,7 @@ struct ContentView: View {
                         Text("Individual Keys")
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         if let sel = vm.selectedKeyDigit {
                             Button("Deselect Key \(sel)") {
@@ -3183,7 +3299,7 @@ struct ContentView: View {
                                 Label("Key \(selDigit) Framing", systemImage: "crop")
                                     .font(.subheadline)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.purple)
+                                    .foregroundStyle(.purple)
                                 Spacer()
                                 Button("Reset") {
                                     withAnimation(.spring()) {
@@ -3201,7 +3317,7 @@ struct ContentView: View {
                             let zoomVal = vm.creatorIndividualZooms[selDigit] ?? 1.0
                             HStack(spacing: 8) {
                                 Image(systemName: "minus.magnifyingglass")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .font(.caption)
                                 
                                 Slider(
@@ -3217,7 +3333,7 @@ struct ContentView: View {
                                 )
                                 
                                 Image(systemName: "plus.magnifyingglass")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .font(.caption)
                                 
                                 Text(String(format: "%.1fx", zoomVal))
@@ -3227,11 +3343,11 @@ struct ContentView: View {
                             
                             HStack(spacing: 6) {
                                 Image(systemName: "hand.draw")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .font(.caption2)
                                 Text("Drag Key \(selDigit) on dialer preview to reposition")
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             
                             HStack(spacing: 8) {
@@ -3251,9 +3367,9 @@ struct ContentView: View {
                         }
                         .padding(10)
                         .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(10)
+                        .clipShape(.rect(cornerRadius: 12))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: 12)
                                 .stroke(Color.purple.opacity(0.35), lineWidth: 1)
                         )
                         
@@ -3262,12 +3378,12 @@ struct ContentView: View {
                     
                     Text("Click any key on the dialer to select it, pan the image, adjust zoom, or drop files.")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                         Text("\(vm.creatorCustomKeys.count) of 10 keys configured")
                             .font(.caption)
                             .fontWeight(.medium)
@@ -3421,12 +3537,12 @@ struct ContentView: View {
             VStack(spacing: 1) {
                 Text(btn.digit)
                     .font(.system(size: 28, weight: .light))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 if !btn.letters.isEmpty {
                     Text(btn.letters)
                         .font(.system(size: 9, weight: .semibold))
                         .tracking(1)
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
             }
         }
@@ -3462,6 +3578,11 @@ struct ContentView: View {
                 }
             }
         }
+        // Coexists with the DragGesture above (repositioning the key image),
+        // so this can't become a real Button — give VoiceOver the semantics
+        // directly instead.
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("Key \(btn.digit)")
         .contextMenu {
             if vm.creatorSubMode == .individualKeys {
                 Button("Change Key \(btn.digit)...") {
@@ -3513,12 +3634,12 @@ struct ContentView: View {
                         .overlay(
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundStyle(.white.opacity(0.9))
                         )
                     
                     Text("Enter Passcode")
                         .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(.white.opacity(0.95))
+                        .foregroundStyle(.white.opacity(0.95))
                         .padding(.top, 2)
                     
                     // 6-Dot Indicator
@@ -3545,11 +3666,11 @@ struct ContentView: View {
                 HStack {
                     Text("Emergency")
                         .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                     Spacer()
                     Text("Cancel")
                         .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 12)
@@ -3566,35 +3687,66 @@ struct ContentView: View {
     
     // MARK: - Passcode Target Configuration Box
     
+    // Split out of targetSettingsCard: the combined length of this header's
+    // modifier chains plus the card below was too much for the type checker
+    // to resolve in one expression after the foregroundStyle/clipShape sweep.
+    private var targetSettingsHeader: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "slider.horizontal.3")
+                .foregroundStyle(.purple)
+                .font(.system(size: 13, weight: .semibold))
+            Text("Flash & Language Target")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
+            Spacer()
+            if let dev = vm.device, dev.connected {
+                Button(action: { vm.applyDevicePreferences(from: dev) }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                        Text("Auto-detect")
+                    }
+                    .font(.system(size: 9, weight: .medium))
+                }
+                .buttonStyle(.borderless)
+                .help("Reset to iPhone's detected language and font style")
+            }
+        }
+    }
+
+    // Split out for the same type-checker reason as the two properties
+    // above it: pre-computing isUniversal keeps the ternaries cheap too.
+    private var speedHint: some View {
+        let isUniversal = vm.passcodeLanguageTarget == .all && vm.passcodeBoldTarget == .both
+        return HStack(alignment: .top, spacing: 6) {
+            Image(systemName: isUniversal ? "globe" : "bolt.fill")
+                .font(.system(size: 10))
+                .foregroundStyle(isUniversal ? Color.secondary : Color.orange)
+                .padding(.top, 1)
+
+            if isUniversal {
+                Text("Universal mode flashes ~600 files for all languages & Bold text. Selecting a specific language (e.g. Ukrainian) speeds up flashing dramatically.")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Fast mode selected: only targets \(vm.passcodeLanguageTarget.rawValue) with \(vm.passcodeBoldTarget.rawValue).")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     private var targetSettingsCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "slider.horizontal.3")
-                    .foregroundColor(.purple)
-                    .font(.system(size: 13, weight: .semibold))
-                Text("Flash & Language Target")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                Spacer()
-                if let dev = vm.device, dev.connected {
-                    Button(action: { vm.applyDevicePreferences(from: dev) }) {
-                        HStack(spacing: 3) {
-                            Image(systemName: "sparkles")
-                            Text("Auto-detect")
-                        }
-                        .font(.system(size: 9, weight: .medium))
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Reset to iPhone's detected language and font style")
-                }
-            }
+            targetSettingsHeader
             
             // 1. Language Target Selector
             VStack(alignment: .leading, spacing: 4) {
                 Text("System Language:")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 
                 Picker("", selection: $vm.passcodeLanguageTarget) {
                     ForEach(PasscodeLanguageTarget.allCases) { item in
@@ -3609,7 +3761,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Font Weight / Style:")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 
                 Picker("", selection: $vm.passcodeBoldTarget) {
                     ForEach(PasscodeBoldTarget.allCases) { item in
@@ -3621,30 +3773,13 @@ struct ContentView: View {
             }
             
             // Helpful Speed / Info Hint
-            HStack(alignment: .top, spacing: 6) {
-                Image(systemName: vm.passcodeLanguageTarget == .all && vm.passcodeBoldTarget == .both ? "globe" : "bolt.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(vm.passcodeLanguageTarget == .all && vm.passcodeBoldTarget == .both ? .secondary : .orange)
-                    .padding(.top, 1)
-                
-                if vm.passcodeLanguageTarget == .all && vm.passcodeBoldTarget == .both {
-                    Text("Universal mode flashes ~600 files for all languages & Bold text. Selecting a specific language (e.g. Ukrainian) speeds up flashing dramatically.")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text("Fast mode selected: only targets \(vm.passcodeLanguageTarget.rawValue) with \(vm.passcodeBoldTarget.rawValue).")
-                        .font(.system(size: 9))
-                        .foregroundColor(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(.top, 2)
+            speedHint
+                .padding(.top, 2)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(NSColor.controlBackgroundColor).opacity(0.6)))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.purple.opacity(0.3), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(NSColor.controlBackgroundColor).opacity(0.6)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.purple.opacity(0.3), lineWidth: 1))
     }
     
     private var activityLogView: some View {
@@ -3653,7 +3788,7 @@ struct ContentView: View {
                 Text("Activity Log")
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button("Clear") {
                     vm.logs.removeAll()
@@ -3670,7 +3805,7 @@ struct ContentView: View {
                         ForEach(Array(vm.logs.enumerated()), id: \.offset) { idx, log in
                             Text(log)
                                 .font(.system(size: 10, design: .monospaced))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .id(idx)
                         }
                     }
@@ -3704,13 +3839,13 @@ struct ContentView: View {
                         Text(vm.statusText)
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                         
                         if vm.isFlashing || vm.progress > 0 {
                             Text("\(Int(min(max(vm.progress, 0.0), 1.0) * 100))%")
                                 .font(.caption)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
                     }
@@ -3722,27 +3857,27 @@ struct ContentView: View {
                             if count > 0 {
                                 Text("Theme Creator · \(count) of 10 keys configured · Target: \(targetInfo)")
                                     .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             } else {
                                 Text("Theme Creator · Import a poster or drop icons onto keys")
                                     .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         } else if let theme = vm.loadedPasscodeTheme {
                             let targetInfo = "\(vm.targetTelephonyVersion) · \(vm.passcodeLanguageTarget.code.uppercased()) · \(vm.passcodeBoldTarget.code)"
                             Text("\(theme.fileCount) source assets loaded · Target: \(targetInfo)")
                                 .font(.system(size: 10))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         } else {
                             Text("No .passthm loaded · Select a theme package to flash")
                                 .font(.system(size: 10))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     } else if !vm.cards.isEmpty {
                         let selectedCount = vm.cards.filter { $0.isSelected }.count
                         Text("\(selectedCount) of \(vm.cards.count) cards selected · \(changedCount) changed · \(readyToFlashCount - changedCount) already on iPhone")
                             .font(.system(size: 10))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
@@ -3781,7 +3916,12 @@ struct ContentView: View {
                             .padding(.horizontal, 8)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.purple)
+                        // Green, not this tab's purple: this is the one button
+                        // here that actually writes to the iPhone, so it gets
+                        // the same "commits to your device" color Flash Skins
+                        // uses on the Wallet tab — a consistent signal instead
+                        // of a tab-color accident.
+                        .tint(.green)
                         .controlSize(.regular)
                         .disabled(vm.effectiveCreatorKeys.isEmpty || vm.isFlashing || vm.device?.connected != true)
                     } else {
@@ -3801,7 +3941,9 @@ struct ContentView: View {
                             .padding(.horizontal, 8)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.purple)
+                        // Same reasoning as Flash to iPhone above: green marks
+                        // "writes to your device", consistently across tabs.
+                        .tint(.green)
                         .controlSize(.regular)
                         .disabled(vm.loadedPasscodeTheme == nil || vm.isFlashing || vm.device?.connected != true)
                     }
@@ -3834,12 +3976,12 @@ struct ContentView: View {
                 HStack(spacing: 4) {
                     Text("By")
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Link("@mak5er", destination: URL(string: "https://github.com/mak5er")!)
                         .font(.system(size: 10))
                     Text("&")
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Link("@Lumid-Off", destination: URL(string: "https://github.com/Lumid-Off")!)
                         .font(.system(size: 10))
                 }
@@ -3857,7 +3999,7 @@ struct ContentView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "heart.circle.fill")
                         .font(.system(size: 34))
-                        .foregroundColor(.pink)
+                        .foregroundStyle(.pink)
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
@@ -3868,7 +4010,7 @@ struct ContentView: View {
                         }
                         Text("@mak5er • Lead Developer")
                             .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     Spacer()
                 }
@@ -3884,8 +4026,8 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                         .background(Color.blue.opacity(0.12))
-                        .foregroundColor(.blue)
-                        .cornerRadius(6)
+                        .foregroundStyle(.blue)
+                        .clipShape(.rect(cornerRadius: 6))
                     }
 
                     Link(destination: URL(string: "https://github.com/mak5er")!) {
@@ -3897,20 +4039,20 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                         .background(Color.primary.opacity(0.08))
-                        .foregroundColor(.primary)
-                        .cornerRadius(6)
+                        .foregroundStyle(.primary)
+                        .clipShape(.rect(cornerRadius: 6))
                     }
                 }
             }
             .padding(12)
             .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(10)
+            .clipShape(.rect(cornerRadius: 12))
 
             // Payment Methods
             VStack(alignment: .leading, spacing: 8) {
                 Text("DONATE & SUPPORT")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 2)
 
                 // PayPal Button
@@ -3931,9 +4073,9 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .background(Color.blue)
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
                 }
 
                 // TON
@@ -3961,9 +4103,9 @@ struct ContentView: View {
                 )
             }
 
-            Text("Thank you for supporting AirCard development! ❤️")
+            Text("Thank you for supporting CustomyWallet development! ❤️")
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
     }
@@ -3974,15 +4116,15 @@ struct ContentView: View {
             VStack(spacing: 4) {
                 Image(systemName: "heart.circle.fill")
                     .font(.system(size: 40))
-                    .foregroundColor(.pink)
+                    .foregroundStyle(.pink)
 
-                Text("Welcome to AirCard!")
+                Text("Welcome to CustomyWallet!")
                     .font(.title2)
                     .fontWeight(.bold)
 
                 Text("Free & Open Source • Developed by @mak5er")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Divider()
@@ -3992,7 +4134,7 @@ struct ContentView: View {
             Divider()
 
             VStack(spacing: 8) {
-                Button("Continue to AirCard") {
+                Button("Continue to CustomyWallet") {
                     showSupportPopup = false
                 }
                 .buttonStyle(.borderedProminent)
@@ -4001,11 +4143,11 @@ struct ContentView: View {
 
                 Toggle("Don't show this popup on startup", isOn: $dontShowSupportOnLaunch)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Text("You can reopen donation options anytime in Credits & Donate ❤️")
                     .font(.system(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(20)
@@ -4027,15 +4169,15 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "creditcard.circle.fill")
                         .font(.system(size: 40))
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                     
-                    Text("AirCard")
+                    Text("CustomyWallet")
                         .font(.title2)
                         .fontWeight(.bold)
                     
                     Text("Apple Wallet Skins & Passcode Themes for iOS 18+")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     // Button to Donate
                     Button(action: {
@@ -4045,17 +4187,17 @@ struct ContentView: View {
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "heart.fill")
-                                .foregroundColor(.pink)
+                                .foregroundStyle(.pink)
                             Text("Support @mak5er (Donate ❤️)")
                                 .fontWeight(.semibold)
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .padding(8)
                         .background(Color.pink.opacity(0.1))
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
                     }
                     .buttonStyle(.plain)
 
@@ -4064,42 +4206,42 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Image(systemName: "person.crop.circle.fill")
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
                             Text("Developer:")
                                 .fontWeight(.medium)
                             Link("@mak5er", destination: URL(string: "https://github.com/mak5er")!)
                             Text("·")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             Link("Twitter / X", destination: URL(string: "https://x.com/mak5er")!)
                         }
                         
                         HStack {
                             Image(systemName: "person.crop.circle.fill")
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
                             Text("Developer:")
                                 .fontWeight(.medium)
                             Link("@Lumid-Off", destination: URL(string: "https://github.com/Lumid-Off")!)
                             Text("·")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             Link("Twitter / X", destination: URL(string: "https://x.com/LumidOff")!)
                         }
                         
                         HStack {
                             Image(systemName: "bolt.shield.fill")
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                             Text("Core Exploit:")
                                 .fontWeight(.medium)
                             Text("airlift (AirTraffic sync escape)")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         
                         HStack {
                             Image(systemName: "lock.shield.fill")
-                                .foregroundColor(.purple)
+                                .foregroundStyle(.purple)
                             Text("Passcode Themes:")
                                 .fontWeight(.medium)
                             Text(".passthm standard (Cowabunga / Nugget)")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .font(.subheadline)
@@ -4128,7 +4270,7 @@ struct ContentView: View {
                 .font(.headline)
             Text("Paste one or more card IDs. Saved IDs remain hidden until the connected iPhone exposes them in a scan.")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             TextEditor(text: $vm.manualHashInput)
                 .font(.system(.body, design: .monospaced))
@@ -4312,7 +4454,7 @@ struct ContentView: View {
 
 #if !WALLET_TESTS
 @main
-struct AirCardApp: App {
+struct CustomyWalletApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

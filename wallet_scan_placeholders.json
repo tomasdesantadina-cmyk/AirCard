@@ -1,0 +1,9 @@
+{
+  "_comment": "Known junk hashes emitted by Wallet/PassKit logs that are not real card identifiers. Shared by aircard.py and Sources/WalletDiscovery.swift so the denylist can't drift between the two scanners.",
+  "placeholders": [
+    "OM6NYhwXMZrAw0sRUjR62wmF4ZQ=",
+    "M6nDwZrkYbFlsodLgCbvyFZQ1cc=",
+    "kJL-D0rr-SZhbj2c8nK-OQ9hCMY=",
+    "hwAtAmHKYwsQrJbT5cTNDsaxVME="
+  ]
+}

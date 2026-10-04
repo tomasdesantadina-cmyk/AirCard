@@ -85,7 +85,23 @@ enum WalletScanParser {
     static let fallbackToken = try! NSRegularExpression(
         pattern: #"(?<![-A-Za-z0-9+/=])([A-Za-z0-9+/_-]{27}=)(?![-A-Za-z0-9+/=])"#
     )
-    static let placeholders: Set<String> = ["OM6NYhwXMZrAw0sRUjR62wmF4ZQ=", "M6nDwZrkYbFlsodLgCbvyFZQ1cc=", "kJL-D0rr-SZhbj2c8nK-OQ9hCMY=", "hwAtAmHKYwsQrJbT5cTNDsaxVME="]
+    // Shared with aircard.py's wallet_scan_placeholders.json so the two
+    // scanners' junk-hash denylist can't drift apart. Falls back to the
+    // known set if the resource file isn't bundled (e.g. a raw swiftc build).
+    static let placeholders: Set<String> = {
+        let fallback: Set<String> = ["OM6NYhwXMZrAw0sRUjR62wmF4ZQ=", "M6nDwZrkYbFlsodLgCbvyFZQ1cc=", "kJL-D0rr-SZhbj2c8nK-OQ9hCMY=", "hwAtAmHKYwsQrJbT5cTNDsaxVME="]
+        let candidates = [
+            Bundle.main.resourceURL?.appendingPathComponent("wallet_scan_placeholders.json"),
+            Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("wallet_scan_placeholders.json")
+        ]
+        for case let url? in candidates {
+            guard let data = try? Data(contentsOf: url),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let values = json["placeholders"] as? [String] else { continue }
+            return Set(values)
+        }
+        return fallback
+    }()
 
     static func cardIDs(in line: String) -> [String] {
         let lineRange = NSRange(line.startIndex..., in: line)
