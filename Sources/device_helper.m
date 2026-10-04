@@ -250,7 +250,7 @@ static int StreamDeviceLogs(AMDServiceConnectionRef connection) {
     };
     if (AMDServiceConnectionSendMessage(connection,
             (__bridge CFDictionaryRef)request, kCFPropertyListBinaryFormat_v1_0) != 0) {
-        fprintf(stderr, "AirCard scanner: Could not request device log streaming.\n");
+        fprintf(stderr, "CustomyWallet scanner: Could not request device log streaming.\n");
         return 2;
     }
 
@@ -263,18 +263,18 @@ static int StreamDeviceLogs(AMDServiceConnectionRef connection) {
               options:NSPropertyListImmutable format:NULL error:NULL] : nil;
     if (![status isKindOfClass:NSDictionary.class] ||
         ![status[@"Status"] isEqual:@"RequestSuccessful"]) {
-        fprintf(stderr, "AirCard scanner: %s\n",
+        fprintf(stderr, "CustomyWallet scanner: %s\n",
                 (error ?: @"The device refused to start log streaming.").UTF8String);
         return 2;
     }
 
-    fprintf(stderr, "AirCard scanner: Connected to the unified device log stream.\n");
+    fprintf(stderr, "CustomyWallet scanner: Connected to the unified device log stream.\n");
     while (YES) {
         @autoreleasepool {
             NSData *record = AirCardTraceReadFrame(AMDServiceConnectionReceive,
                                                    connection, &type, &error);
             if (!record) {
-                fprintf(stderr, "AirCard scanner: %s\n", error.UTF8String);
+                fprintf(stderr, "CustomyWallet scanner: %s\n", error.UTF8String);
                 return 2;
             }
             if (type != 2) continue;
@@ -290,17 +290,17 @@ static int StreamDeviceLogs(AMDServiceConnectionRef connection) {
 
 static int RunSyslog(void) {
     if (FindTarget() != 0 || !TargetDevice) {
-        fprintf(stderr, "AirCard scanner: iPhone not found. Reconnect it via USB.\n");
+        fprintf(stderr, "CustomyWallet scanner: iPhone not found. Reconnect it via USB.\n");
         return 2;
     }
     AMDeviceRef device = TargetDevice;
     if (AMDeviceConnect(device) != 0) {
-        fprintf(stderr, "AirCard scanner: Could not connect to the iPhone.\n");
+        fprintf(stderr, "CustomyWallet scanner: Could not connect to the iPhone.\n");
         return 2;
     }
     if (!AMDeviceIsPaired(device)) AMDevicePair(device);
     if (AMDeviceValidatePairing(device) != 0 || AMDeviceStartSession(device) != 0) {
-        fprintf(stderr, "AirCard scanner: Unlock the iPhone and trust this Mac, then retry.\n");
+        fprintf(stderr, "CustomyWallet scanner: Unlock the iPhone and trust this Mac, then retry.\n");
         AMDeviceDisconnect(device);
         return 2;
     }
@@ -309,7 +309,7 @@ static int RunSyslog(void) {
     if (AMDeviceSecureStartService(
             device, CFSTR("com.apple.os_trace_relay"), NULL, &connection) != 0 ||
         !connection) {
-        fprintf(stderr, "AirCard scanner: Could not open the device log service. Unlock the iPhone and retry.\n");
+        fprintf(stderr, "CustomyWallet scanner: Could not open the device log service. Unlock the iPhone and retry.\n");
         AMDeviceStopSession(device);
         AMDeviceDisconnect(device);
         return 2;

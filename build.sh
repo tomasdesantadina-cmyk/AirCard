@@ -8,7 +8,7 @@ echo "==> [1/6] Building universal helper binaries (device_helper & airtraffic_h
 make clean
 make all
 
-APP_NAME="AirCard"
+APP_NAME="CustomyWallet"
 APP_DIR="build/${APP_NAME}.app"
 CONTENTS_DIR="${APP_DIR}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
@@ -29,15 +29,15 @@ cat << 'EOF' > "${CONTENTS_DIR}/Info.plist"
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>AirCard</string>
+    <string>CustomyWallet</string>
     <key>CFBundleIdentifier</key>
-    <string>com.mak5er.aircard</string>
+    <string>com.mak5er.customywallet</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>AirCard</string>
+    <string>CustomyWallet</string>
     <key>CFBundleDisplayName</key>
-    <string>AirCard</string>
+    <string>CustomyWallet</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundlePackageType</key>
@@ -74,6 +74,7 @@ cp aircard.py "$RESOURCES_DIR/"
 cp aircard_backend.py "$RESOURCES_DIR/"
 cp card_assets.py "$RESOURCES_DIR/"
 cp wallet_catalog.py "$RESOURCES_DIR/"
+cp wallet_scan_placeholders.json "$RESOURCES_DIR/"
 
 # A bundle without these cannot talk to a device at all, so fail here instead
 # of shipping an app that reports "No iPhone found" for every user.
@@ -92,10 +93,10 @@ if [ -z "${SWIFT_SDK:-}" ]; then
         SWIFT_SDK="$CLT_SWIFTUI_SDK"
     fi
 fi
-swiftc -sdk "$SWIFT_SDK" -O -parse-as-library -target arm64-apple-macosx14.0 AirCardApp.swift Sources/WalletDiscovery.swift Sources/WalletDiagnosticsView.swift -o build/AirCard_arm64
-swiftc -sdk "$SWIFT_SDK" -O -parse-as-library -target x86_64-apple-macosx14.0 AirCardApp.swift Sources/WalletDiscovery.swift Sources/WalletDiagnosticsView.swift -o build/AirCard_x86_64
-lipo -create -output "${MACOS_DIR}/AirCard" build/AirCard_arm64 build/AirCard_x86_64
-chmod +x "${MACOS_DIR}/AirCard"
+swiftc -sdk "$SWIFT_SDK" -O -parse-as-library -target arm64-apple-macosx14.0 AirCardApp.swift Sources/WalletDiscovery.swift Sources/WalletDiagnosticsView.swift -o "build/${APP_NAME}_arm64"
+swiftc -sdk "$SWIFT_SDK" -O -parse-as-library -target x86_64-apple-macosx14.0 AirCardApp.swift Sources/WalletDiscovery.swift Sources/WalletDiagnosticsView.swift -o "build/${APP_NAME}_x86_64"
+lipo -create -output "${MACOS_DIR}/${APP_NAME}" "build/${APP_NAME}_arm64" "build/${APP_NAME}_x86_64"
+chmod +x "${MACOS_DIR}/${APP_NAME}"
 
 echo "==> [5/6] Setting permissions and signing ${APP_NAME}.app bundle..."
 chmod -R 755 "$APP_DIR"
@@ -142,7 +143,7 @@ for binary in "${MACOS_DIR}/${APP_NAME}" "${BIN_DIR}"/*; do
 done
 
 echo "==> [6/6] Generating styled DMG (${APP_NAME}.dmg)..."
-DMG_STAGING="/tmp/aircard_dmg_staging"
+DMG_STAGING="/tmp/customywallet_dmg_staging"
 rm -rf "$DMG_STAGING"
 mkdir -p "$DMG_STAGING"
 cp -R "$APP_DIR" "$DMG_STAGING/"
@@ -151,13 +152,13 @@ rm -f "build/${APP_NAME}.dmg"
 
 if command -v create-dmg >/dev/null 2>&1; then
     create-dmg \
-        --volname "AirCard" \
+        --volname "${APP_NAME}" \
         --background "dmg_assets/background_700.png" \
         --window-pos 200 120 \
         --window-size 700 460 \
         --icon-size 110 \
-        --icon "AirCard.app" 175 220 \
-        --hide-extension "AirCard.app" \
+        --icon "${APP_NAME}.app" 175 220 \
+        --hide-extension "${APP_NAME}.app" \
         --app-drop-link 525 220 \
         --add-file "README.txt" "dmg_assets/README.txt" 350 360 \
         --filesystem APFS \
@@ -166,7 +167,7 @@ if command -v create-dmg >/dev/null 2>&1; then
         "$DMG_STAGING"
 else
     ln -s /Applications "$DMG_STAGING/Applications"
-    hdiutil create -volname "AirCard" -srcfolder "$DMG_STAGING" -ov -format UDZO "build/${APP_NAME}.dmg"
+    hdiutil create -volname "${APP_NAME}" -srcfolder "$DMG_STAGING" -ov -format UDZO "build/${APP_NAME}.dmg"
 fi
 
 # Sign the disk image too, otherwise the signature stops at the app inside it.

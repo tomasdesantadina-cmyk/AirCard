@@ -21,7 +21,7 @@ from pathlib import Path
 script_dir = Path(__file__).resolve().parent
 for bin_path in [
     str(script_dir / "bin"),
-    "/Applications/AirCard.app/Contents/Resources/bin",
+    "/Applications/CustomyWallet.app/Contents/Resources/bin",
     "/opt/homebrew/bin",
     "/usr/local/bin",
     "/usr/bin",
@@ -54,6 +54,29 @@ CARD_REGEXES = [
     re.compile(r"/([-A-Za-z0-9_+=]{20,44})\.(?:pkpass|cache|pkcache)"),
     re.compile(r"(?<![A-Za-z0-9+/_-])([A-Za-z0-9+/_-]{27}=)(?![A-Za-z0-9+/_-])"),
 ]
+
+PLACEHOLDERS_PATH = script_dir / "wallet_scan_placeholders.json"
+
+
+def load_placeholder_hashes() -> set[str]:
+    """Loads the shared junk-hash denylist (also read by WalletDiscovery.swift)."""
+    try:
+        data = json.loads(PLACEHOLDERS_PATH.read_text("utf-8"))
+        values = data.get("placeholders", [])
+        if isinstance(values, list) and all(isinstance(v, str) for v in values):
+            return set(values)
+    except Exception:
+        pass
+    # Fallback keeps scanning correct if the shared file is ever missing.
+    return {
+        "OM6NYhwXMZrAw0sRUjR62wmF4ZQ=",
+        "M6nDwZrkYbFlsodLgCbvyFZQ1cc=",
+        "kJL-D0rr-SZhbj2c8nK-OQ9hCMY=",
+        "hwAtAmHKYwsQrJbT5cTNDsaxVME=",
+    }
+
+
+PLACEHOLDER_HASHES = load_placeholder_hashes()
 
 
 def load_saved_cards() -> list[str]:
@@ -251,11 +274,7 @@ def capture_card_hashes(udid: str, existing_cards: list[str] | None = None) -> l
                         h = m.group(1).strip().strip("'\"").rstrip(".").rstrip(",")
                         if len(h) == 36 and "-" in h:
                             continue
-                        if h in [
-                            "M6nDwZrkYbFlsodLgCbvyFZQ1cc=",
-                            "kJL-D0rr-SZhbj2c8nK-OQ9hCMY=",
-                            "hwAtAmHKYwsQrJbT5cTNDsaxVME=",
-                        ]:
+                        if h in PLACEHOLDER_HASHES:
                             continue
                         if h and h not in found_hashes:
                             found_hashes.add(h)

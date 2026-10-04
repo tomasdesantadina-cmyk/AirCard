@@ -26,7 +26,7 @@ struct WalletDiagnosticsView: View {
                 Text(headerStatusText)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(vm.currentVerifiedCardIDs.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(vm.currentVerifiedCardIDs.isEmpty ? .secondary : .primary)
 
                 if vm.isScanningCards {
                     ProgressView()
@@ -86,10 +86,16 @@ struct WalletDiagnosticsView: View {
                 }
                 .frame(maxHeight: 160)
             } label: {
-                Text(pendingCount > 0 ? "Check missing cards (\(pendingCount))" : "Check missing cards")
-                    .font(.caption)
+                // The bare count reads as an error/warning badge on its own;
+                // say in-line what it's actually counting.
+                let label = Text(pendingCount > 0 ? "Check missing cards (\(pendingCount))" : "Check missing cards")
                     .foregroundStyle(.secondary)
+                let detail = Text(pendingCount > 0 ? " — seen on this Mac, not yet confirmed on this iPhone" : "")
+                    .foregroundStyle(.tertiary)
+                Text("\(label)\(detail)")
+                    .font(.caption)
             }
+            .help("Cards this Mac's Wallet cache knows about that haven't been matched to a card scanned on this iPhone yet.")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
